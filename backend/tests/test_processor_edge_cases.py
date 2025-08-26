@@ -38,7 +38,7 @@ def test_process_fails_when_generate_summary_none(
     pdf = make_pdf(tmp_path)
     monkeypatch.setattr("cartaos.processor.extract_text", lambda p: "hello")
     monkeypatch.setattr("cartaos.processor.sanitize", lambda t: t)
-    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t: None)
+    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t, k: None)
     proc = CartaOSProcessor(pdf, config=mock_config)
     assert proc.process() is False
 
@@ -49,7 +49,7 @@ def test_save_summary_slugifies_filename(
     pdf = make_pdf(tmp_path, name="My Report (v1).pdf")
     monkeypatch.setattr("cartaos.processor.extract_text", lambda p: "content")
     monkeypatch.setattr("cartaos.processor.sanitize", lambda t: t)
-    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t: "Summary Text")
+    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t, k: "Summary Text")
 
     # Create config with custom directories
     monkeypatch.setenv("GEMINI_API_KEY", "test_key")

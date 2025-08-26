@@ -47,20 +47,26 @@ def test_debug_mode_writes_extracted_text_and_returns_true(
     assert pdf.exists()
 
 
-def test_dry_run_prints_summary_and_does_not_write_files(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture, tmp_path: Path, mock_config: AppConfig
+def test_dry_run_logs_and_prints_summary_and_does_not_write_files(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture, caplog: pytest.LogCaptureFixture, tmp_path: Path, mock_config: AppConfig
 ) -> None:
     pdf = _make_pdf(tmp_path)
     monkeypatch.setattr("cartaos.processor.extract_text", lambda p: "some text")
     monkeypatch.setattr("cartaos.processor.sanitize", lambda t: t)
-    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t: "DRY SUMMARY")
+    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t, k: "DRY SUMMARY")
 
-    proc = CartaOSProcessor(pdf_path=pdf, config=mock_config, dry_run=True)
-    ok = proc.process()
-    assert ok is True
+    with caplog.at_level('INFO'):
+        proc = CartaOSProcessor(pdf_path=pdf, config=mock_config, dry_run=True)
+        ok = proc.process()
+        assert ok is True
 
-    out = capsys.readouterr().out
-    assert "DRY SUMMARY" in out
+        # Check log messages
+        log_messages = [rec.message for rec in caplog.records]
+        assert any("[DRY RUN] Process would be successful." in msg for msg in log_messages)
+
+        # Check printed output (summary is printed, not logged)
+        out = capsys.readouterr().out
+        assert "DRY SUMMARY" in out
 
     # No summary file created and PDF not moved
     assert not (tmp_path / "07_Processed" / "Summaries" / f"{pdf.stem}.md").exists()

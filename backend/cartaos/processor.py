@@ -120,7 +120,12 @@ class CartaOSProcessor:
 
             progress.update(task, advance=20)
             logging.info("Generating summary with the AI model...")
-            summary: Optional[str] = generate_summary(sanitized_text)
+
+            if not self.config.api_key:
+                logging.error("API key not configured. Cannot generate summary.")
+                return False
+
+            summary: Optional[str] = generate_summary(sanitized_text, self.config.api_key)
             if not summary:
                 logging.error("Process stopped: summary could not be generated.")
                 return False

@@ -60,15 +60,15 @@ def test_process_debug_path_creates_debug_file_and_returns_true(
     assert debug_file.read_text(encoding="utf-8") == "hello text"
 
 
-def test_process_dry_run_prints_and_returns_true(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mock_config: AppConfig
+def test_process_dry_run_logs_and_prints_and_returns_true(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mock_config: AppConfig, caplog: pytest.LogCaptureFixture
 ) -> None:
     pdf = make_pdf(tmp_path)
 
     # Regular path: extract -> sanitize -> generate_summary -> dry_run True
     monkeypatch.setattr("cartaos.processor.extract_text", lambda p: "raw")
     monkeypatch.setattr("cartaos.processor.sanitize", lambda t: "sanitized")
-    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t: "the summary")
+    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t, k: "the summary")
 
     # Avoid file operations in dry run; process should not call _save/_move
     save_called = {"save": False, "move": False}
@@ -90,10 +90,22 @@ def test_process_dry_run_prints_and_returns_true(
 
     monkeypatch.setattr(builtins, "print", fake_print)
 
-    proc = CartaOSProcessor(pdf_path=pdf, config=mock_config, dry_run=True)
-    ok = proc.process()
-    assert ok is True
-    assert printed["text"] == "the summary"
+    with caplog.at_level('INFO'):
+        proc = CartaOSProcessor(pdf_path=pdf, config=mock_config, dry_run=True)
+        ok = proc.process()
+        assert ok is True
+
+        # Check log messages for dry run message
+        log_messages = [rec.message for rec in caplog.records]
+        assert any("[DRY RUN] Process would be successful." in msg for msg in log_messages)
+        
+        # Check log messages for dry run message
+        log_messages = [rec.message for rec in caplog.records]
+        assert any("[DRY RUN] Process would be successful." in msg for msg in log_messages)
+        
+        # Check printed output for summary
+        assert printed["text"] == "the summary"
+
     # Ensure no file ops in dry run
     assert save_called["save"] is False
     assert save_called["move"] is False
@@ -106,7 +118,7 @@ def test_process_generate_summary_failure(
 
     monkeypatch.setattr("cartaos.processor.extract_text", lambda p: "raw")
     monkeypatch.setattr("cartaos.processor.sanitize", lambda t: "sanitized")
-    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t: None)
+    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t, k: None)
 
     proc = CartaOSProcessor(pdf_path=pdf, config=mock_config)
     assert proc.process() is False
@@ -120,7 +132,7 @@ def test_process_defaults_full_success_saves_and_moves(
     # Ensure normal pipeline succeeds
     monkeypatch.setattr("cartaos.processor.extract_text", lambda p: "raw")
     monkeypatch.setattr("cartaos.processor.sanitize", lambda t: "sanitized")
-    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t: "the summary")
+    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t, k: "the summary")
 
     calls = {"save": 0, "move": 0}
 

@@ -20,7 +20,7 @@ def mock_ai(monkeypatch, tmp_path):
     monkeypatch.setenv("GEMINI_API_KEY", "KEY")
     monkeypatch.setattr(_conf, "PROMPTS_DIR", tmp_path)
     # mock do cliente Gemini
-    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t: DummyGen.text)
+    monkeypatch.setattr("cartaos.processor.generate_summary", lambda t, k: DummyGen.text)
     return p
 
 

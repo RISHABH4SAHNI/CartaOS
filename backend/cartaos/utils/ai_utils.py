@@ -8,11 +8,9 @@ This module provides functions for generating analytical summaries using the Gem
 """
 
 import logging
-import os
 from pathlib import Path
 from typing import Optional
 
-from dotenv import load_dotenv
 from google.genai import Client, models
 
 from cartaos import config
@@ -24,23 +22,23 @@ _CLIENT: Optional[Client] = None
 _EXTERNAL_CALL_MANAGER: Optional[ExternalCallManager] = None
 
 
-def get_client() -> Client:
+def get_client(api_key: str) -> Client:
     """
     Creates and returns a singleton instance of the Gemini AI client.
 
     The client is created only once, and subsequent calls return the same instance.
+
+    Args:
+        api_key (str): The API key for the Gemini AI service.
+
+    Returns:
+        Client: The Gemini AI client instance.
     """
     global _CLIENT
     if _CLIENT is not None:
         return _CLIENT
 
-    # Try secure keychain first, then fallback to .env
-    api_key = get_secure_api_key("GEMINI_API_KEY")
-    if not api_key:
-        logging.error("GEMINI_API_KEY not found in keychain or environment")
-        raise ValueError("API key is not configured.")
-
-    _CLIENT = Client(api_key=api_key)
+    _CLIENT = Client(api_key=api_key.strip())
     logging.info("Gemini AI client initialized successfully.")
     return _CLIENT
 
@@ -48,8 +46,9 @@ def get_client() -> Client:
 def get_client_with_retries() -> Client:
     """
     Creates and returns a Gemini AI client with retry capabilities.
+    This function is deprecated - use get_client(api_key) instead.
     """
-    return get_client()  # For now, just return the regular client
+    raise NotImplementedError("Use get_client(api_key) instead")
 
 
 def get_external_call_manager() -> ExternalCallManager:
@@ -66,7 +65,7 @@ def get_external_call_manager() -> ExternalCallManager:
 
 
 async def generate_content_with_retries(
-    prompt: str, model: str = "models/gemini-2.5-pro"
+    prompt: str, api_key: str, model: str = "models/gemini-2.5-pro"
 ) -> Optional[str]:
     """
     Generate content using Gemini AI with timeout and retry protection.
@@ -74,6 +73,7 @@ async def generate_content_with_retries(
     Args:
         prompt (str): The prompt to send to the AI
         model (str): The model to use for generation
+        api_key (str): The API key for the Gemini AI service
 
     Returns:
         Optional[str]: Generated content or None if generation fails
@@ -81,7 +81,7 @@ async def generate_content_with_retries(
     manager = get_external_call_manager()
 
     async def ai_call():
-        client = get_client()
+        client = get_client(api_key)
         response = client.models.generate_content(model=model, contents=prompt)
 
         if response and hasattr(response, "text"):
@@ -98,18 +98,23 @@ async def generate_content_with_retries(
         return None
 
 
-def generate_summary(text: str) -> Optional[str]:
+def generate_summary(text: str, api_key: str) -> Optional[str]:
     """
     Generates the analytical summary using the Gemini AI API.
 
     Args:
         text (str): The text to be summarized.
+        api_key (str): The API key for the Gemini AI service.
 
     Returns:
         Optional[str]: Generated summary or None if generation fails.
     """
+    if not api_key or not api_key.strip():
+        logging.error("API key is required for summary generation")
+        return None
+
     try:
-        client = get_client()
+        client = get_client(api_key)
     except ValueError as e:
         logging.error("Failed to generate summary due to configuration error: %s", e)
         return None
@@ -145,16 +150,21 @@ def generate_summary(text: str) -> Optional[str]:
         return None
 
 
-async def generate_summary_with_retries(text: str) -> Optional[str]:
+async def generate_summary_with_retries(text: str, api_key: str) -> Optional[str]:
     """
     Generates the analytical summary using the Gemini AI API with retry protection.
 
     Args:
         text (str): The text to be summarized.
+        api_key (str): The API key for the Gemini AI service.
 
     Returns:
         Optional[str]: Generated summary or None if generation fails.
     """
+    if not api_key or not api_key.strip():
+        logging.error("API key is required for summary generation")
+        return None
+
     prompt_path = config.PROMPTS_DIR / "summary_prompt.md"
 
     try:
@@ -167,7 +177,7 @@ async def generate_summary_with_retries(text: str) -> Optional[str]:
 
         prompt = prompt_template.format(text=text)
 
-        return await generate_content_with_retries(prompt)
+        return await generate_content_with_retries(prompt, api_key)
 
     except Exception as e:
         logging.error("Error preparing summary generation: %s", e, exc_info=True)
