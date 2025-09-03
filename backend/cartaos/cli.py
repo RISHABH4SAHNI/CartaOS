@@ -35,6 +35,8 @@ from typing import Any, Dict, Optional
 import typer
 
 from cartaos import config
+# Import database CLI commands
+from cartaos.cli_database import db_app
 
 # Monkeypatch-friendly placeholders for heavy processors. Tests may set these.
 OcrProcessor: Optional[Any] = None
@@ -51,6 +53,9 @@ app = typer.Typer(
     help="CartaOS - [C]uration, [A]nalysis, and [R]efinement of [T]exts for [A]cademia ([O]pen [S]ource).",
     rich_markup_mode="markdown",
 )
+
+# Add database management sub-application
+app.add_typer(db_app, name="db")
 
 
 def _version_callback(value: bool) -> None:
@@ -370,6 +375,12 @@ def summarize(
     json_output: bool = typer.Option(
         False, "--json", help="Emit structured JSON output for IPC/automation."
     ),
+    use_database: bool = typer.Option(
+        False, "--use-database", "--db", help="Use database-backed configuration instead of environment variables."
+    ),
+    db_path: Optional[Path] = typer.Option(
+        None, "--db-path", help="Path to SQLite database file (only used with --use-database)."
+    ),
 ) -> None:
     """
     Generates an analytical summary for a given PDF file.
@@ -377,7 +388,7 @@ def summarize(
     """
     try:
         global CartaOSProcessor
-        from cartaos.config import AppConfig
+        from cartaos.config import AppConfig, DatabaseConfig
         if not json_output:
             typer.secho(f"Starting summary for: {pdf_path.name}", fg=typer.colors.CYAN)
 
@@ -398,6 +409,8 @@ def summarize(
                         "dry_run": dry_run,
                         "debug": debug,
                         "force_ocr": force_ocr,
+                        "use_database": use_database,
+                        "db_path": str(db_path) if db_path else None,
                     },
                 },
             }
@@ -409,8 +422,17 @@ def summarize(
 
             CartaOSProcessor = _CartaOSProcessor
 
-        # Create configuration instance once
-        config = AppConfig()
+        # Create configuration instance once - support both AppConfig and DatabaseConfig
+        if use_database:
+            config = DatabaseConfig(db_path=db_path, fallback_to_env=True)
+            if not config.database_available:
+                typer.secho(
+                    "Warning: Database not available, falling back to environment configuration",
+                    fg=typer.colors.YELLOW
+                )
+        else:
+            config = AppConfig()
+
         processor = CartaOSProcessor(
             pdf_path=pdf_path, config=config, dry_run=dry_run, debug=debug, force_ocr=force_ocr
         )

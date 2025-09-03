@@ -3,7 +3,8 @@
 
 import os
 from pathlib import Path
-from typing import Dict, Literal, Optional, TypedDict
+from typing import Dict, Literal, Optional, TypedDict, Any
+import logging
 
 from dotenv import load_dotenv
 
@@ -84,3 +85,121 @@ class AppConfig:
         self.summary_dir: Path = self.processed_pdf_dir / "Summaries"
         if self.obsidian_vault_path and Path(self.obsidian_vault_path).is_dir():
             self.summary_dir = Path(self.obsidian_vault_path) / "Summaries"
+
+
+class DatabaseConfig:
+    """
+    Database-backed configuration class for persistent application settings.
+
+    This class provides a higher-level interface for managing application configuration
+    using the SQLite database for persistence. It integrates with the existing AppConfig
+    while adding persistent storage capabilities.
+    """
+
+    def __init__(self, db_path: Optional[Path] = None, fallback_to_env: bool = True):
+        """
+        Initialize the database-backed configuration.
+
+        Args:
+            db_path (Optional[Path]): Path to SQLite database file. If None, uses default.
+            fallback_to_env (bool): Whether to fall back to environment variables if database is unavailable.
+        """
+        self.fallback_to_env = fallback_to_env
+        self.logger = logging.getLogger(__name__)
+
+        # Initialize database manager
+        try:
+            from .database import get_database_manager
+            self.db_manager = get_database_manager(db_path)
+            self.database_available = True
+        except Exception as e:
+            self.logger.warning(f"Database initialization failed: {e}")
+            self.database_available = False
+            self.db_manager = None
+
+        # Fallback to AppConfig if database is unavailable and fallback is enabled
+        if not self.database_available and self.fallback_to_env:
+            self.app_config = AppConfig()
+        else:
+            self.app_config = None
+
+    @property
+    def api_key(self) -> Optional[str]:
+        """Get the Gemini API key from database or environment fallback."""
+        if self.database_available:
+            api_key = self.db_manager.get_setting("gemini_api_key")
+            if api_key:
+                return api_key
+
+        if self.app_config:
+            return self.app_config.api_key
+
+        return None
+
+    @api_key.setter
+    def api_key(self, value: Optional[str]):
+        """Set the Gemini API key in the database."""
+        if self.database_available:
+            self.db_manager.set_setting("gemini_api_key", value, "Google Gemini API key for AI processing")
+        else:
+            self.logger.warning("Cannot persist API key: database unavailable")
+
+    @property
+    def obsidian_vault_path(self) -> Optional[str]:
+        """Get the Obsidian vault path from database or environment fallback."""
+        if self.database_available:
+            path = self.db_manager.get_setting("obsidian_vault_path")
+            if path:
+                return path
+
+        if self.app_config:
+            return self.app_config.obsidian_vault_path
+
+        return None
+
+    @obsidian_vault_path.setter
+    def obsidian_vault_path(self, value: Optional[str]):
+        """Set the Obsidian vault path in the database."""
+        if self.database_available:
+            self.db_manager.set_setting("obsidian_vault_path", value, "Path to Obsidian vault for summary storage")
+        else:
+            self.logger.warning("Cannot persist Obsidian vault path: database unavailable")
+
+    @property
+    def summary_dir(self) -> Path:
+        """Get the summary directory path, respecting Obsidian vault setting."""
+        obsidian_path = self.obsidian_vault_path
+
+        if obsidian_path and Path(obsidian_path).is_dir():
+            return Path(obsidian_path) / "Summaries"
+
+        return ROOT_DIR / "07_Processed" / "Summaries"
+
+    @property
+    def processed_pdf_dir(self) -> Path:
+        """Get the processed PDF directory path."""
+        return ROOT_DIR / "07_Processed"
+
+    def get_setting(self, key: str, default: Any = None) -> Any:
+        """Get a configuration setting by key."""
+        if self.database_available:
+            value = self.db_manager.get_setting(key)
+            if value is not None:
+                return value
+
+        return default
+
+    def set_setting(self, key: str, value: Any, description: Optional[str] = None) -> bool:
+        """Set a configuration setting."""
+        if self.database_available:
+            return self.db_manager.set_setting(key, str(value) if value is not None else None, description)
+        else:
+            self.logger.warning(f"Cannot persist setting '{key}': database unavailable")
+            return False
+
+    def get_all_settings(self) -> Dict[str, str]:
+        """Get all configuration settings."""
+        if self.database_available:
+            return self.db_manager.get_all_settings()
+
+        return {}

@@ -10,7 +10,7 @@ import logging
 import os
 import shutil
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from rich.progress import (BarColumn, Progress, SpinnerColumn, TaskID,
                            TextColumn, TimeRemainingColumn)
@@ -20,7 +20,7 @@ from .utils.ai_utils import generate_summary
 from .utils.pdf_utils import extract_text
 from .utils.text_utils import sanitize
 from .utils.utils import WarningCaptureHandler
-from .config import AppConfig
+from .config import AppConfig, DatabaseConfig
 
 
 class CartaOSProcessor:
@@ -29,7 +29,7 @@ class CartaOSProcessor:
     def __init__(
         self,
         pdf_path: Path,
-        config: AppConfig,
+        config: Union[AppConfig, DatabaseConfig],
         dry_run: bool = False,
         debug: bool = False,
         force_ocr: bool = False,
@@ -39,13 +39,13 @@ class CartaOSProcessor:
 
         Args:
             pdf_path (Path): Path to the PDF file to be processed.
-            config (AppConfig): Application configuration instance.
+            config (Union[AppConfig, DatabaseConfig]): Application configuration instance.
             dry_run (bool): If True, processes without saving or moving files.
             debug (bool): If True, saves extracted text and stops before AI call.
             force_ocr (bool): If True, forces OCR processing before summarization.
         """
         self.pdf_path: Path = pdf_path
-        self.config: AppConfig = config
+        self.config: Union[AppConfig, DatabaseConfig] = config
         self.dry_run: bool = dry_run
         self.debug: bool = debug
         self.force_ocr: bool = force_ocr
