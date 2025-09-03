@@ -145,7 +145,6 @@ class DatabaseManager:
             ("auto_ocr_enabled", "true", "Automatically run OCR on scanned PDFs"),
             ("max_file_size_mb", "50", "Maximum file size in MB for processing"),
         ]
-
         for key, value, description in default_settings:
             if not self.get_setting(key):
                 self.set_setting(key, value, description)
@@ -185,7 +184,7 @@ class DatabaseManager:
 
     def set_setting(self, key: str, value: Optional[str], description: Optional[str] = None) -> bool:
         """
-        Set or update a user setting.
+        Set or update a user setting using an atomic upsert operation.
 
         Args:
             key (str): Setting key name.
@@ -196,28 +195,21 @@ class DatabaseManager:
             bool: True if successful, False otherwise.
         """
         try:
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
             with self.get_connection() as conn:
-                # Check if setting exists
-                existing = conn.execute(
-                    select(self.user_settings.c.id).where(
-                        self.user_settings.c.key == key
-                    )
-                ).scalar()
+                # Use an atomic "upsert" operation
+                stmt = sqlite_insert(self.user_settings).values(
+                    key=key, value=value, description=description
+                )
 
-                if existing:
-                    # Update existing setting
-                    stmt = (
-                        update(self.user_settings)
-                        .where(self.user_settings.c.key == key)
-                        .values(value=value, updated_at=datetime.utcnow())
-                    )
-                else:
-                    # Insert new setting
-                    stmt = insert(self.user_settings).values(
-                        key=key, value=value, description=description
-                    )
+                # On conflict (key already exists), update the value and timestamp
+                update_stmt = stmt.on_conflict_do_update(
+                    index_elements=['key'],
+                    set_=dict(value=value, updated_at=datetime.utcnow())
+                )
 
-                conn.execute(stmt)
+                conn.execute(update_stmt)
                 conn.commit()
                 return True
 

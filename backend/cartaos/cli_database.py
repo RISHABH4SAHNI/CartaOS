@@ -19,7 +19,7 @@ from rich.panel import Panel
 from rich import print as rprint
 
 from .config import DatabaseConfig, ROOT_DIR
-from .config_migration import migrate_env_to_database, ConfigMigrator
+from .config_migration import migrate_env_to_database
 from .database import get_database_manager
 
 # Create a sub-application for database commands
