@@ -6,7 +6,7 @@ from pathlib import Path
 
 import typer
 
-from .simplified_installer import SimplifiedInstaller
+from .installer import DevInstaller
 
 app = typer.Typer(
     name="cartaos-setup",
@@ -37,7 +37,7 @@ def setup(
     It does NOT install system packages - instead it provides clear instructions for
     missing dependencies.
     """
-    installer = SimplifiedInstaller(dry_run=dry_run, check_only=check_only)
+    installer = DevInstaller(dry_run=dry_run, check_only=check_only)
 
     success = installer.run()
 
@@ -54,7 +54,7 @@ def check():
 
     This is equivalent to running 'setup --check-only'.
     """
-    installer = SimplifiedInstaller(check_only=True)
+    installer = DevInstaller(check_only=True)
 
     success = installer.run()
 

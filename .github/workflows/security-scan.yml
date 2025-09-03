@@ -1,0 +1,55 @@
+name: Security Scan
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+  workflow_dispatch:
+    # Allow manual triggering
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install security tools
+        run: |
+          pip install safety bandit semgrep
+          cargo install cargo-audit
+
+      # Python dependencies scan
+      - name: Scan Python dependencies (safety)
+        run: |
+          cd backend
+          poetry export --dev --without-hashes -f requirements.txt -o requirements.txt
+          safety check --file=requirements.txt
+
+      # Python code scan
+      - name: Scan Python code (bandit)
+        run: |
+          cd backend
+          bandit -r cartaos -x tests -lll
+
+      # Rust dependencies audit
+      - name: Audit Rust dependencies
+        run: |
+          cd src-tauri
+          cargo audit --deny warnings
+
+      # SAST with semgrep
+      - name: Run semgrep
+        run: |
+          semgrep --config=auto --error
+
+      # Check for secrets in code
+      - name: Detect secrets
+        uses: gitleaks/gitleaks-action@v3
+        with:
+          config-path: .github/gitleaks.toml

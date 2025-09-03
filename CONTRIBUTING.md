@@ -16,7 +16,7 @@ cd CartaOS
 ### 2. Install Dev Environment
 
 ```bash
-python3 backend/cartaos/install_dev_env.py
+python3 -m backend.cartaos.install_dev_env
 ```
 
 ### 3. Create a Feature Branch
@@ -41,13 +41,23 @@ git push origin feat/my-feature
 
 ---
 
-## 🧪 Testing
+## 🧪 Testing and the TDD Approach
 
-* Run unit tests before committing:
+To ensure code quality and maintainability, CartaOS strongly encourages the adoption of **TDD (Test-Driven Development)**.
+
+The expected development cycle is **Red-Green-Refactor**:
+
+1.  **🔴 Red:** Write a failing test for the desired functionality.
+2.  **🟢 Green:** Write the simplest possible code to make the test pass.
+3.  **🔵 Refactor:** Refactor the implementation code, keeping the test green.
+
+Before committing your code, always run the full test suite to ensure nothing has been broken:
 
 ```bash
 pytest
 ```
+
+Adopting TDD not only improves quality but also serves as living documentation and protects against future regressions.
 
 ---
 

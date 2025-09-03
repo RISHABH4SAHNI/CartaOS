@@ -64,6 +64,24 @@ def test_dry_run_logs_summary_and_does_not_write_files(
         log_messages = [rec.message for rec in caplog.records]
         assert any("[DRY RUN] Process would be successful." in msg for msg in log_messages)
         assert any("[DRY RUN] Process would be successful." in msg for msg in log_messages)
+        
+    monkeypatch.setattr(
+        proc_mod.CartaOSProcessor, "load_config", fake_load_config, raising=True
+    )
+
+    # avoid moving
+    monkeypatch.setattr(
+        proc_mod.CartaOSProcessor, "_move_pdf", lambda self: None, raising=True
+    )
+
+    with caplog.at_level('INFO'):
+        proc = CartaOSProcessor(pdf_path=pdf, dry_run=True)
+        ok = proc.process()
+        assert ok is True
+        
+        # Check log messages
+        log_messages = [rec.message for rec in caplog.records]
+        assert any("[DRY RUN] Process would be successful." in msg for msg in log_messages)
         assert any("Summary: DRY SUMMARY" in msg for msg in log_messages)
 
     # No summary file created and PDF not moved

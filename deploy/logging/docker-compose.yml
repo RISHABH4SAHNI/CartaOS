@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.3
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - logging
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.13.3
+    volumes:
+      - ./logstash/pipeline/:/usr/share/logstash/pipeline/
+      - ./logstash/config/:/usr/share/logstash/config/
+    environment:
+      - "LS_JAVA_OPTS=-Xmx1g -Xms1g"
+    ports:
+      - "5044:5044"
+      - "5000:5000"
+    depends_on:
+      - elasticsearch
+    networks:
+      - logging
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.3
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - logging
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.13.3
+    user: root
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log/cartaos:/var/log/cartaos:ro
+    depends_on:
+      - logstash
+    networks:
+      - logging
+
+networks:
+  logging:
+    driver: bridge
+
+volumes:
+  elasticsearch_data:
+    driver: local

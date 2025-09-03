@@ -76,7 +76,7 @@ The system follows a **multi-stage pipeline**, where documents move through stru
  ┃    ┣ 📜 triage.py                        # 📄 File triage module
  ┃    ┣ 📜 lab.py                           # 📄 Correction lab helper
  ┃    ┣ 📜 processor.py                     # 📄 AI summary processor
- ┃    ┗ 📜 install_dev_env.py               # ⚙ Cross-platform installer
+ ┃    ┗ 📜 install_dev_env                  # ⚙ Cross-platform installer
  ┣ 📂 frontend                              # 🎨 GUI frontend
  ┃ ┗ 📂 src
  ┃    ┗ 📂 components                       # 🧩 UI Components
@@ -127,7 +127,7 @@ For developers who want to build from source:
 ```bash
 git clone https://github.com/CartaOS/CartaOS.git
 cd CartaOS
-python3 backend/cartaos/install_dev_env.py
+python3 -m backend.cartaos.install_dev_env
 ```
 
 This installer:

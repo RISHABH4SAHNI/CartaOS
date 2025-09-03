@@ -15,7 +15,7 @@
 ```bash
 git clone https://github.com/CartaOS/CartaOS.git
 cd CartaOS
-python3 backend/cartaos/install_dev_env.py
+python3 -m backend.cartaos.install_dev_env
 ````
 
 ---

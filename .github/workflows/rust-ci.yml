@@ -6,9 +6,9 @@ concurrency:
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main, dev]
   push:
-    branches: [ main ]
+    branches: [main, dev]
 
 jobs:
   clippy_and_test:
@@ -121,3 +121,20 @@ jobs:
         env:
           PYTHONPATH: ../backend
         run: cargo test --all --verbose
+        
+      - name: Security audit
+        uses: actions-rs/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Check binary size
+        run: |
+          # Get the size of the release binary
+          BIN_SIZE=$(stat -c "%s" target/release/cartaos 2>/dev/null || stat -f "%z" target/release/cartaos)
+          echo "Binary size: $((BIN_SIZE / 1024)) KB"
+          # Fail if binary exceeds 50MB
+          if [ $BIN_SIZE -gt 52428800 ]; then
+            echo "Error: Binary size exceeds 50MB"
+            exit 1
+          fi
+        continue-on-error: true

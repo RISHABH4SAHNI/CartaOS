@@ -87,7 +87,6 @@ def test_process_dry_run_logs_summary_and_returns_true(
         ok = proc.process()
         assert ok is True
 
-        # Check log messages
         log_messages = [rec.message for rec in caplog.records]
         assert any("[DRY RUN] Process would be successful." in msg for msg in log_messages)
         assert any("Summary: the summary" in msg for msg in log_messages)

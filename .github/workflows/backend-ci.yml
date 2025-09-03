@@ -6,9 +6,9 @@ concurrency:
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   push:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   lint:
@@ -39,6 +39,18 @@ jobs:
 
       - name: Run mypy (type checking)
         run: poetry run mypy cartaos
+        
+      - name: Security check (safety)
+        run: |
+          pip install safety
+          poetry export --dev --without-hashes -f requirements.txt -o requirements.txt
+          safety check --file=requirements.txt
+          
+      - name: Check API documentation
+        run: |
+          poetry install --with docs
+          cd docs && make html SPHINXOPTS="-W --keep-going -n" && cd ..
+        continue-on-error: true
 
   test:
     name: PyTest + Coverage

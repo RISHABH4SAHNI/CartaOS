@@ -92,6 +92,7 @@ __pycache__/
 /cartaos-install.log
 /coverage.xml
 /GEMINI.md
+.gemini_logs/
 
 # ===================================================================
 # Operating System specific files

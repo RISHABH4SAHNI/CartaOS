@@ -132,8 +132,9 @@ class CartaOSProcessor:
 
             progress.update(task, advance=20)
             if self.dry_run:
-                logging.info("[DRY RUN] Process would be successful.")
-                print(summary)
+                logger = logging.getLogger(__name__)
+                logger.info("[DRY RUN] Process would be successful.")
+                logger.info("Summary: %s", summary)
                 return True
 
             self._save_summary(summary)

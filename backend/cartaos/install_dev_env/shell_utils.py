@@ -22,6 +22,7 @@ def run_command(
     env: Optional[dict] = None,
     cwd: Optional[Path] = None,
     use_login_shell: bool = False,
+    check: bool = False,
 ) -> Tuple[bool, str]:
     """
     Runs a command, captures its output, and handles errors gracefully.
@@ -31,9 +32,11 @@ def run_command(
         env: Optional dictionary of environment variables.
         cwd: Optional Path object for the working directory.
         use_login_shell: If True, wraps the command in a login shell (e.g., 'bash -lc').
+        check: If True, raises subprocess.CalledProcessError on non-zero exit codes.
 
     Returns:
-        A tuple of (success: bool, output: str).
+        A tuple of (success: bool, output: str) if check is False.
+        Raises subprocess.CalledProcessError if check is True and command fails.
     """
     if use_login_shell:
         shell_cmd = " ".join(cmd)
@@ -47,17 +50,38 @@ def run_command(
         p = subprocess.run(
             cmd, capture_output=True, text=True, encoding="utf-8", env=env, cwd=cwd
         )
-        if p.returncode == 0:
-            return True, (p.stdout or "").strip()
-        else:
-            return (
-                False,
-                ((p.stdout or "").strip() + "\n" + (p.stderr or "").strip()).strip(),
-            )
+
+        if p.returncode != 0:
+            if check:
+                raise subprocess.CalledProcessError(
+                    p.returncode, p.args, output=p.stdout, stderr=p.stderr
+                )
+            else:
+                return False, ((p.stdout or "").strip() + "\n" + (p.stderr or "").strip()).strip()
+
+        return True, (p.stdout or "").strip()
+
     except FileNotFoundError:
+        if check:
+            raise
         return False, f"Command not found: {cmd[0]}"
     except Exception as e:
+        if check:
+            raise
         return False, f"An unexpected error occurred: {e}"
+
+def run_and_check(
+    cmd: List[str],
+    env: Optional[dict] = None,
+    cwd: Optional[Path] = None,
+    use_login_shell: bool = False,
+) -> str:
+    """
+    Runs a command and raises an exception if it fails. Returns stdout on success.
+    """
+    success, output = run_command(cmd, env=env, cwd=cwd, use_login_shell=use_login_shell, check=True)
+    return output # If check=True, it will raise on failure, so output is always stdout here
+
 
 
 def get_shell_recommendation() -> str:
